@@ -27,7 +27,7 @@ different ways; each of them can be displayed or suppressed.  These rows include
  - word values (evaluated as a 32-bit word)
  - controller values (based on controller type, what buttons (or values) are represented ?
 
-Some examples are shown below (using mock data):
+An example is shown below (from an actual data capture):
 
 ![Multitap](img/PCFX_SCSI.JPG)
 
