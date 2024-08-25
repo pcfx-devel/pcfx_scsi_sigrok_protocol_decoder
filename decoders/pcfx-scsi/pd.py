@@ -157,6 +157,7 @@ class Decoder(srd.Decoder):
         self.datastartsample = 0     # detect start sample of data 
         self.datafound = 0           # Do not display subphases unless data was actually transferred within them
                                      # (could just be CD/IO/MSG toggling)
+        self.busyhigh_samplenum = 0  # for glitch filter
 
 
 
@@ -224,6 +225,7 @@ class Decoder(srd.Decoder):
                 # get values of cd, io, msg for subphase
                 self.subphase = (scsi_msg << 2) + (scsi_cd << 1) + scsi_io
                 self.phasestartsample = self.samplenum
+                self.busyhigh_samplenum = self.samplenum  # for glitch filter
 
 
             if self.state == 'INFO XFER':
@@ -232,7 +234,7 @@ class Decoder(srd.Decoder):
                 # SCSI_IO = Input (when low), Output (when High)
                 #
                 # Wait for rising transition on channel 9 (scsi_bsy), which completes transaction
-                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {14: 'f'}, {14: 'r'}, {9: 'r'}])
+                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {14: 'f'}, {14: 'r'}, {9: 'h'}])
                 pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack)
 
                 if ((self.matched & (0b1 << 0)) or (self.matched & (0b1 << 1)) or (self.matched & (0b1 << 2))):
@@ -261,12 +263,15 @@ class Decoder(srd.Decoder):
                     self.datafound = self.datafound + 1
                     self.datastartsample = self.samplenum
 
-                # rising BSY means end of Information Transfer phase
+                # High BSY means end of Information Transfer phase
                 if (self.matched & (0b1 << 5)):
-                    self.put(self.startsamplenum, self.samplenum, self.out_ann,
-                                     [4, ['Information Transfer', 'Info Xfer', 'Inf']])
-                    self.state = 'BUS FREE'
-                    self.startsamplenum = self.samplenum
+                    if ((self.samplenum - self.busyhigh_samplenum) < 2):      # glitch filter
+                        self.put(self.startsamplenum, self.samplenum, self.out_ann,
+                                         [4, ['Information Transfer', 'Info Xfer', 'Inf']])
+                        self.state = 'BUS FREE'
+                        self.startsamplenum = self.samplenum
+                    else:
+                        self.busyhigh_samplenum = self.samplenum
 
 
             self.last_samplenum = self.samplenum
