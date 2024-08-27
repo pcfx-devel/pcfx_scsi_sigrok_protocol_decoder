@@ -159,8 +159,6 @@ class Decoder(srd.Decoder):
         self.datastartsample = 0     # detect start sample of data 
         self.datafound = 0           # Do not display subphases unless data was actually transferred within them
                                      # (could just be CD/IO/MSG toggling)
-        self.busyhigh_samplenum = 0  # for glitch filter
-
 
 
     def metadata(self, key, value):
@@ -227,11 +225,10 @@ class Decoder(srd.Decoder):
                 # get values of cd, io, msg for subphase
                 self.subphase = (scsi_msg << 2) + (scsi_cd << 1) + scsi_io
                 self.phasestartsample = self.samplenum
-                self.busyhigh_samplenum = self.samplenum  # for glitch filter
 
 
             if self.state == 'INFO XFER':
-                # Within Command, two signals are most important: SCSI_CD and SCSI_IO
+                # Within Command, three signals are most important: SCSI_MSG, SCSI_CD and SCSI_IO
                 # SCSI_CD = Command (when low), Data (when High)
                 # SCSI_IO = Input (when low), Output (when High)
                 #
@@ -260,18 +257,7 @@ class Decoder(srd.Decoder):
                     if ((self.match_criteria & (0b1 << 2)) and not (self.matched & (0b1 << 2))):
                         end_subphase = 1
 
-#                    if ((self.matched & (0b1 << 0)) and not (self.match_criteria & (0b1 << 0))):    # found as new trigger on confirmation read; need to check again to confirm
-#                        double_check = 1
-#
-#                    if ((self.matched & (0b1 << 1)) and not (self.match_criteria & (0b1 << 1))):
-#                        double_check = 1
-#
-#                    if ((self.matched & (0b1 << 2)) and not (self.match_criteria & (0b1 << 2))):
-#                        double_check = 1
-
-
                     # falling ACK (end of REQ, start of ACK) means data should be sampled
-#                if ((self.match_criteria & (0b1 << 3)) and (scsi_ack == scsi_ack_new)):
                     if ((self.match_criteria & (0b1 << 3)) and not (self.matched & (0b1 << 3))):
                         if (scsi_ack == 0):                                             # sample data on falling ACK
                             self.dataval = getbyteval(pins)
@@ -279,8 +265,6 @@ class Decoder(srd.Decoder):
                         else:
 
                     # rising ACK means end of data pulse
-#                if ((self.match_criteria & (0b1 << 4)) and (scsi_ack == scsi_ack_new)):
-#                if (self.match_criteria & (0b1 << 4)):
                             if (self.subphase & (0b1 << 0)):                            # If scsi_io is set, direction is to target device
                                 self.put(self.datastartsample, self.samplenum, self.out_ann,
                                                  [20, [self.dataval]])
@@ -293,16 +277,12 @@ class Decoder(srd.Decoder):
                             self.datastartsample = self.samplenum
 
                     # High BSY means end of Information Transfer phase
-#                if ((self.match_criteria & (0b1 << 5)) and (scsi_bsy == scsi_bsy_new)):
-#                if (self.match_criteria & (0b1 << 5)):
                     if ((self.match_criteria & (0b1 << 4)) and not (self.matched & (0b1 << 4))):
                         self.put(self.startsamplenum, self.samplenum, self.out_ann,
                                          [4, ['Information Transfer', 'Info Xfer', 'Inf']])
                         self.state = 'BUS FREE'
                         self.startsamplenum = self.samplenum
                         end_subphase = 1
-
-#                if ((self.match_criteria & (0b1 << 0)) or (self.match_criteria & (0b1 << 1)) or (self.match_criteria & (0b1 << 2))):
 
                     if (end_subphase == 1):
                         temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (scsi_io << 0)
