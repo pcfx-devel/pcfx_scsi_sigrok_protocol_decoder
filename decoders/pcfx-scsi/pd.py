@@ -236,55 +236,104 @@ class Decoder(srd.Decoder):
                 # SCSI_IO = Input (when low), Output (when High)
                 #
                 # Wait for rising transition on channel 9 (scsi_bsy), which completes transaction
-                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {13: 'f'}, {13: 'r'}, {9: 'h'}])
+                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {13: 'e'}, {9: 'h'}])
 
                 pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack)
 
                 self.match_criteria = self.matched
-#                self.io = scsi_io
+                double_check = 1
+                end_subphase = 0
 
-#                (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13) = self.wait({'skip': 1})
-#                self.last_samplenum = self.samplenum
-#                (c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13) = self.wait({'skip': 1})
+                while (double_check == 1):
 
-                if ((self.match_criteria & (0b1 << 0)) or (self.match_criteria & (0b1 << 1)) or (self.match_criteria & (0b1 << 2))):
-                    temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (scsi_io << 0)
-#                    temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (self.io << 0)
-                    if self.datafound > 0:
-                        subph_label = subphase_label(self.subphase)
-                        self.put(self.phasestartsample, self.samplenum, self.out_ann,
-                                     [(12+self.subphase), subph_label])
-                    self.phasestartsample = self.samplenum
-                    self.subphase = temp_subphase
-                    self.datafound = 0
-                    self.datastartsample = self.samplenum
+                    (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {13: 'e'}, {9: 'e'}, {'skip': 1}])
 
-                # falling ACK (end of REQ, start of ACK) means data should be sampled
+                    if ((self.matched & 0b11111) == 0):             # if nothing triggered except the 'skip' message (critical lines didn't toggle)
+                        double_check = 0
+
+                    if ((self.match_criteria & (0b1 << 0)) and not (self.matched & (0b1 << 0))):    # triggered on first wait, and confirmed as 'not a glitch'
+                        end_subphase = 1
+
+                    if ((self.match_criteria & (0b1 << 1)) and not (self.matched & (0b1 << 1))):
+                        end_subphase = 1
+
+                    if ((self.match_criteria & (0b1 << 2)) and not (self.matched & (0b1 << 2))):
+                        end_subphase = 1
+
+#                    if ((self.matched & (0b1 << 0)) and not (self.match_criteria & (0b1 << 0))):    # found as new trigger on confirmation read; need to check again to confirm
+#                        double_check = 1
+#
+#                    if ((self.matched & (0b1 << 1)) and not (self.match_criteria & (0b1 << 1))):
+#                        double_check = 1
+#
+#                    if ((self.matched & (0b1 << 2)) and not (self.match_criteria & (0b1 << 2))):
+#                        double_check = 1
+
+
+                    # falling ACK (end of REQ, start of ACK) means data should be sampled
 #                if ((self.match_criteria & (0b1 << 3)) and (scsi_ack == scsi_ack_new)):
-                if (self.match_criteria & (0b1 << 3)):
-                    self.dataval = getbyteval(pins)
+                    if ((self.match_criteria & (0b1 << 3)) and not (self.matched & (0b1 << 3))):
+                        if (scsi_ack == 0):                                             # sample data on falling ACK
+                            self.dataval = getbyteval(pins)
 
-                # rising ACK means end of data pulse
+                        else:
+
+                    # rising ACK means end of data pulse
 #                if ((self.match_criteria & (0b1 << 4)) and (scsi_ack == scsi_ack_new)):
-                if (self.match_criteria & (0b1 << 4)):
-                    if (self.subphase & (0b1 << 0)):
-                        self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                         [20, [self.dataval]])
-                    else:
-                        self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                         [21, [self.dataval]])
-                    self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                         [22, ['%d' % self.datafound]])
-                    self.datafound = self.datafound + 1
-                    self.datastartsample = self.samplenum
+#                if (self.match_criteria & (0b1 << 4)):
+                            if (self.subphase & (0b1 << 0)):                            # If scsi_io is set, direction is to target device
+                                self.put(self.datastartsample, self.samplenum, self.out_ann,
+                                                 [20, [self.dataval]])
+                            else:                                                       # If scsi_io is not set, direction is from target device
+                                self.put(self.datastartsample, self.samplenum, self.out_ann,
+                                                 [21, [self.dataval]])
+                            self.put(self.datastartsample, self.samplenum, self.out_ann,
+                                                 [22, ['%d' % self.datafound]])
+                            self.datafound = self.datafound + 1
+                            self.datastartsample = self.samplenum
 
-                # High BSY means end of Information Transfer phase
+                    # High BSY means end of Information Transfer phase
 #                if ((self.match_criteria & (0b1 << 5)) and (scsi_bsy == scsi_bsy_new)):
-                if (self.match_criteria & (0b1 << 5)):
-                    self.put(self.startsamplenum, self.samplenum, self.out_ann,
-                                     [4, ['Information Transfer', 'Info Xfer', 'Inf']])
-                    self.state = 'BUS FREE'
-                    self.startsamplenum = self.samplenum
+#                if (self.match_criteria & (0b1 << 5)):
+                    if ((self.match_criteria & (0b1 << 4)) and not (self.matched & (0b1 << 4))):
+                        self.put(self.startsamplenum, self.samplenum, self.out_ann,
+                                         [4, ['Information Transfer', 'Info Xfer', 'Inf']])
+                        self.state = 'BUS FREE'
+                        self.startsamplenum = self.samplenum
+                        end_subphase = 1
+
+#                if ((self.match_criteria & (0b1 << 0)) or (self.match_criteria & (0b1 << 1)) or (self.match_criteria & (0b1 << 2))):
+
+                    if (end_subphase == 1):
+                        temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (scsi_io << 0)
+                        if self.datafound > 0:                                          # only annotate if there was data transferred
+                            subph_label = subphase_label(self.subphase)
+                            self.put(self.phasestartsample, self.samplenum, self.out_ann,
+                                         [(12+self.subphase), subph_label])
+                        self.phasestartsample = self.samplenum
+                        self.subphase = temp_subphase
+                        self.datafound = 0
+                        self.datastartsample = self.samplenum
+                        end_subphase = 0
+
+                    if (double_check == 1):
+                        self.last_samplenum = self.samplenum
+                        self.match_criteria = self.matched
+                        d0 = ch0
+                        d1 = ch1
+                        d2 = ch2
+                        d3 = ch3
+                        d4 = ch4
+                        d5 = ch5
+                        d6 = ch6
+                        d7 = ch7
+                        scsi_sel = ch8
+                        scsi_bsy = ch9
+                        scsi_cd  = ch10
+                        scsi_io  = ch11
+                        scsi_msg = ch12
+                        scsi_ack = ch13
+                        pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack)
 
 
             self.last_samplenum = self.samplenum
