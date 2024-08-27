@@ -90,7 +90,6 @@ class Decoder(srd.Decoder):
         {'id': 'scsi_cd',  'name': 'CD',  'desc': 'Cmd'},
         {'id': 'scsi_io',  'name': 'IO',  'desc': 'I/O'},
         {'id': 'scsi_msg', 'name': 'MSG', 'desc': 'Msg'},
-        {'id': 'scsi_req', 'name': 'REQ', 'desc': 'Req'},
         {'id': 'scsi_ack', 'name': 'ACK', 'desc': 'Ack'},
     )
 
@@ -124,12 +123,15 @@ class Decoder(srd.Decoder):
 
         ('6',  'datatotgt',   'Data to Target'),     # 20 = (row 3)
         ('6',  'datafromtgt', 'Data from Target'),   # 21 = (row 4)
+
+        ('10', 'bytenum',     'Byte in Sequence'),   # 22 = (row 5)
     )
     annotation_rows = (
-        ('phase',         'Phase',       (0,1,2,3,4,5,6,7,8,9,10,)),
-        ('type',          'Type',        (11,12,13,14,15,16,17,18,19,)),
-        ('to_target',     'To Target',   (20,)),
-        ('from_target',   'From Target', (21,)),
+        ('phase',        'Phase',       (0,1,2,3,4,5,6,7,8,9,10,)),
+        ('type',         'Type',        (11,12,13,14,15,16,17,18,19,)),
+        ('to_target',    'To Target',   (20,)),
+        ('from_target',  'From Target', (21,)),
+        ('byte_num',     'Byte Num',    (22,)),
     )
 
 # Note - SCSI Phases:
@@ -199,8 +201,8 @@ class Decoder(srd.Decoder):
 
             if self.state == 'ARBITRATION':
                 # Wait for falling transition on channel 9 (scsi_bsy), which completes arbitration
-                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack) = self.wait({9: 'f'})
-                pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack)
+                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack) = self.wait({9: 'f'})
+                pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack)
                 value = getluns(pins)
                 self.put(self.startsamplenum, self.samplenum, self.out_ann,
                                  [1, ['Arbitration', 'Arb', 'A']])
@@ -211,7 +213,7 @@ class Decoder(srd.Decoder):
 
             if self.state == 'SELECT':
                 # Wait for rising transition on channel 8 (scsi_sel), which completed selection
-                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack) = self.wait({8: 'r'})
+                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack) = self.wait({8: 'r'})
                 value = getluns(pins)
                 self.put(self.startsamplenum, self.samplenum, self.out_ann,
                                  [2, ['Selection', 'Sel', 'Se']])
@@ -234,11 +236,20 @@ class Decoder(srd.Decoder):
                 # SCSI_IO = Input (when low), Output (when High)
                 #
                 # Wait for rising transition on channel 9 (scsi_bsy), which completes transaction
-                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {14: 'f'}, {14: 'r'}, {9: 'h'}])
-                pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_req, scsi_ack)
+                (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {13: 'f'}, {13: 'r'}, {9: 'h'}])
 
-                if ((self.matched & (0b1 << 0)) or (self.matched & (0b1 << 1)) or (self.matched & (0b1 << 2))):
-                    temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + scsi_io
+                pins = (d0, d1, d2, d3, d4, d5, d6, d7, scsi_sel, scsi_bsy, scsi_cd, scsi_io, scsi_msg, scsi_ack)
+
+                self.match_criteria = self.matched
+#                self.io = scsi_io
+
+#                (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13) = self.wait({'skip': 1})
+#                self.last_samplenum = self.samplenum
+#                (c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13) = self.wait({'skip': 1})
+
+                if ((self.match_criteria & (0b1 << 0)) or (self.match_criteria & (0b1 << 1)) or (self.match_criteria & (0b1 << 2))):
+                    temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (scsi_io << 0)
+#                    temp_subphase = (scsi_msg << 2) + (scsi_cd << 1) + (self.io << 0)
                     if self.datafound > 0:
                         subph_label = subphase_label(self.subphase)
                         self.put(self.phasestartsample, self.samplenum, self.out_ann,
@@ -249,29 +260,31 @@ class Decoder(srd.Decoder):
                     self.datastartsample = self.samplenum
 
                 # falling ACK (end of REQ, start of ACK) means data should be sampled
-                if (self.matched & (0b1 << 3)):
+#                if ((self.match_criteria & (0b1 << 3)) and (scsi_ack == scsi_ack_new)):
+                if (self.match_criteria & (0b1 << 3)):
                     self.dataval = getbyteval(pins)
 
                 # rising ACK means end of data pulse
-                if (self.matched & (0b1 << 4)):
+#                if ((self.match_criteria & (0b1 << 4)) and (scsi_ack == scsi_ack_new)):
+                if (self.match_criteria & (0b1 << 4)):
                     if (self.subphase & (0b1 << 0)):
                         self.put(self.datastartsample, self.samplenum, self.out_ann,
                                          [20, [self.dataval]])
                     else:
                         self.put(self.datastartsample, self.samplenum, self.out_ann,
                                          [21, [self.dataval]])
+                    self.put(self.datastartsample, self.samplenum, self.out_ann,
+                                         [22, ['%d' % self.datafound]])
                     self.datafound = self.datafound + 1
                     self.datastartsample = self.samplenum
 
                 # High BSY means end of Information Transfer phase
-                if (self.matched & (0b1 << 5)):
-                    if ((self.samplenum - self.busyhigh_samplenum) < 2):      # glitch filter
-                        self.put(self.startsamplenum, self.samplenum, self.out_ann,
-                                         [4, ['Information Transfer', 'Info Xfer', 'Inf']])
-                        self.state = 'BUS FREE'
-                        self.startsamplenum = self.samplenum
-                    else:
-                        self.busyhigh_samplenum = self.samplenum
+#                if ((self.match_criteria & (0b1 << 5)) and (scsi_bsy == scsi_bsy_new)):
+                if (self.match_criteria & (0b1 << 5)):
+                    self.put(self.startsamplenum, self.samplenum, self.out_ann,
+                                     [4, ['Information Transfer', 'Info Xfer', 'Inf']])
+                    self.state = 'BUS FREE'
+                    self.startsamplenum = self.samplenum
 
 
             self.last_samplenum = self.samplenum
