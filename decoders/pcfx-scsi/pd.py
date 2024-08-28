@@ -42,8 +42,8 @@ def getbyteval(datapins):
     for iter in range (0, 7):
         if datapins[iter] == 0:
             number = number + (1 << iter)
-    value = '0x%2.2X' % number
-    return value
+#    value = '0x%2.2X' % number
+    return number
 
 
 def subphase_label(subphase):
@@ -64,6 +64,28 @@ def subphase_label(subphase):
     else:
         sp_label = ['Data Out',        'Data Out', 'DO']
     return sp_label
+
+
+def command_annotation(byte0):
+    if ((byte0 == 0x00) or (byte0 == 0x03) or (byte0 == 0x1E)):     # status-type
+        annotation = 21
+
+    elif ((byte0 == 0x43) or (byte0 == 0x44)):                      # directory-type
+        annotation = 22
+
+    elif ((byte0 == 0x08) or (byte0 == 0x28)):                      # data-type
+        annotation = 23
+
+    elif ((byte0 == 0xD8) or (byte0 == 0xD9)):                      # audio-type
+        annotation = 24
+
+    elif ((byte0 == 0x42) or (byte0 == 0xDD)):                      # subcode-type
+        annotation = 25
+
+    else:                                                           # unknown
+        annotation = 28
+
+    return annotation
 
 
 class Decoder(srd.Decoder):
@@ -122,16 +144,25 @@ class Decoder(srd.Decoder):
         ('1',  'data_out',    'Data Out'),           # 19 = (row 2)
 
         ('6',  'datatotgt',   'Data to Target'),     # 20 = (row 3)
-        ('6',  'datafromtgt', 'Data from Target'),   # 21 = (row 4)
+        ('12', 'cmd0',        'Command Type 0'),     # 21 = (row 3) (status-type commands)
+        ('2',  'cmd1',        'Command Type 1'),     # 22 = (row 3) (directory-type commands)
+        ('8',  'cmd2',        'Command Type 2'),     # 23 = (row 3) (data-type commands)
+        ('4',  'cmd3',        'Command Type 3'),     # 24 = (row 3) (audio-type commands)
+        ('13', 'cmd4',        'Command Type 4'),     # 25 = (row 3) (subcode-type commands)
+        ('6',  'cmd5',        'Command Type 5'),     # 26 = (row 3)
+        ('6',  'cmd6',        'Command Type 6'),     # 27 = (row 3)
+        ('0',  'cmd7',        'Command Type 7'),     # 28 = (row 3) (unkown commands)
 
-        ('10', 'bytenum',     'Byte in Sequence'),   # 22 = (row 5)
+        ('6',  'datafromtgt', 'Data from Target'),   # 29 = (row 4)
+
+        ('10', 'bytenum',     'Byte in Sequence'),   # 30 = (row 5)
     )
     annotation_rows = (
         ('phase',        'Phase',       (0,1,2,3,4,5,6,7,8,9,10,)),
         ('type',         'Type',        (11,12,13,14,15,16,17,18,19,)),
-        ('to_target',    'To Target',   (20,)),
-        ('from_target',  'From Target', (21,)),
-        ('byte_num',     'Byte Num',    (22,)),
+        ('to_target',    'To Target',   (20,21,22,23,24,25,26,27,28,)),
+        ('from_target',  'From Target', (29,)),
+        ('byte_num',     'Byte Num',    (30,)),
     )
 
 # Note - SCSI Phases:
@@ -243,10 +274,31 @@ class Decoder(srd.Decoder):
 
                 while (double_check == 1):
 
+                    end_subphase = 0
                     (ch0, ch1, ch2, ch3, ch4, ch5, ch6, ch7, ch8, ch9, ch10, ch11, ch12, ch13) = self.wait([{10: 'e'}, {11: 'e'}, {12: 'e'}, {13: 'e'}, {9: 'e'}, {'skip': 1}])
 
                     if ((self.matched & 0b11111) == 0):             # if nothing triggered except the 'skip' message (critical lines didn't toggle)
                         double_check = 0
+
+                    if ((self.match_criteria & (0b1 << 0)) and (self.matched & (0b1 << 0))):        # They should cancel each other out
+                        self.match_criteria = (self.match_criteria & 0b111110)
+                        self.matched        = (self.matched & 0b111110)
+
+                    if ((self.match_criteria & (0b1 << 1)) and (self.matched & (0b1 << 1))):        # They should cancel each other out
+                        self.match_criteria = (self.match_criteria & 0b111101)
+                        self.matched        = (self.matched & 0b111101)
+
+                    if ((self.match_criteria & (0b1 << 2)) and (self.matched & (0b1 << 2))):        # They should cancel each other out
+                        self.match_criteria = (self.match_criteria & 0b111011)
+                        self.matched        = (self.matched & 0b111011)
+
+                    if ((self.match_criteria & (0b1 << 3)) and (self.matched & (0b1 << 3))):        # They should cancel each other out
+                        self.match_criteria = (self.match_criteria & 0b110111)
+                        self.matched        = (self.matched & 0b110111)
+
+                    if ((self.match_criteria & (0b1 << 4)) and (self.matched & (0b1 << 4))):        # They should cancel each other out
+                        self.match_criteria = (self.match_criteria & 0b101111)
+                        self.matched        = (self.matched & 0b101111)
 
                     if ((self.match_criteria & (0b1 << 0)) and not (self.matched & (0b1 << 0))):    # triggered on first wait, and confirmed as 'not a glitch'
                         end_subphase = 1
@@ -265,14 +317,20 @@ class Decoder(srd.Decoder):
                         else:
 
                     # rising ACK means end of data pulse
+                            if (self.subphase == 5):        # COMMAND
+                                if (self.datafound == 0):   # first byte of command
+                                    command_annote = command_annotation(self.dataval)
+                            else:
+                                command_annote = 20                     # DATA (if data is being xferred to target)
+
                             if (self.subphase & (0b1 << 0)):                            # If scsi_io is set, direction is to target device
                                 self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                                 [20, [self.dataval]])
+                                                 [command_annote, ['0x%2.2X' % self.dataval]])
                             else:                                                       # If scsi_io is not set, direction is from target device
                                 self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                                 [21, [self.dataval]])
+                                                 [29, ['0x%2.2X' % self.dataval]])
                             self.put(self.datastartsample, self.samplenum, self.out_ann,
-                                                 [22, ['%d' % self.datafound]])
+                                                 [30, ['%d' % self.datafound]])
                             self.datafound = self.datafound + 1
                             self.datastartsample = self.samplenum
 
