@@ -39,7 +39,7 @@ def getluns(datapins):
 
 def getbyteval(datapins):
     number = 0
-    for iter in range (0, 7):
+    for iter in range (0, 8):
         if datapins[iter] == 0:
             number = number + (1 << iter)
 #    value = '0x%2.2X' % number
@@ -76,7 +76,7 @@ def command_annotation(byte0):
     elif ((byte0 == 0x08) or (byte0 == 0x28)):                      # data-type
         annotation = 23
 
-    elif ((byte0 == 0xD8) or (byte0 == 0xD9)):                      # audio-type
+    elif ((byte0 == 0xD8) or (byte0 == 0xD9) or (byte0 == 0x4B)):   # audio-type
         annotation = 24
 
     elif ((byte0 == 0x42) or (byte0 == 0xDD)):                      # subcode-type
