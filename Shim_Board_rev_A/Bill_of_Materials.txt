@@ -1,0 +1,2 @@
+CN1,CN2: Molex 52044-4045 FFC 40-pin connector
+J1: 2x2 Pin Header, 2.54mm (0.1") spacing
