@@ -22,14 +22,23 @@ Once you have installed the protocol decoder, it should be selectable in the lis
 
 The protocol decoder adds several annotation rows, to be able to interpret the bitstream in several
 different ways; each of them can be displayed or suppressed.  These rows include:
- - bit values (electrical or internal representation, as internal is the inverse of electrical)
- - byte values (4 x 8-bit bytes per scan)
- - word values (evaluated as a 32-bit word)
- - controller values (based on controller type, what buttons (or values) are represented ?
+ - SCSI phase (which defines which unit(s) are communicating what type of data to each other)
+ - Type (eitehr LUN pairs for communication, or a communication type within "Information Transfer" bus phase)
+ - Data To Target (data bytes being sent from the Master to the Target)
+ - Data From Target (data bytes being sent from the Target to the Master)
+ - Byte Number (Counter for bytes within a transfer sequence)
 
 An example is shown below (from an actual data capture):
 
 ![Multitap](img/PCFX_SCSI.JPG)
+
+### Not Implemented
+
+- SCSI Abort
+- Not paying attention to the SCSI "ATN" signal
+- Any Timing/timeout conditions (bus settling, timeouts, etc.)
+- Any other Protocol Errors
+
 
 ### What exactly is this 'sigrok' thing ?
 
@@ -55,11 +64,9 @@ protocol decoder like this one to help interpret.
 
 While this protocol decoder has been written according to sigrok standards, I have (so far) only
 installed and tested on "DSView", used in conjunction with my DreamSource Labs' DSLogic U3Pro32
-logic state analyzer, and not PulseView.  HOWEVER, I do intend to obtain a low-cost analyzer and
-test with PulseView at some point in the near future.  (I have no reason to believe that it won't
-work on the first attempt).
+logic state analyzer, and not PulseView.
 
-I have not yet submitted this into the sigrok project, as there are still a few framing error
+I have not yet submitted this into the sigrok project, as there are still some framing error
 conditions I'd like to identify and display, and I want to do testing on the actual PulseView
 software first.
 
