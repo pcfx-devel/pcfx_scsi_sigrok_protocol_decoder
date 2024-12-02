@@ -88,6 +88,91 @@ def command_annotation(byte0):
     return annotation
 
 
+def command_label(ctype):
+    if (ctype[0] == 0x00):              # TEST UNIT READY
+        cmd_label = [ f"[00]: TEST UNIT READY   [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x03):            # REQUEST SENSE
+        if ctype[4] == 0x12:
+            cmd_label = [ f"[03]: REQUEST SENSE (18 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+        else:
+            cmd_label = [ f"[03]: REQUEST SENSE (4 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x15):            # MODE SELECT
+        if ctype[1] == 0x00:
+            cmd_label = [ f"[15]: MODE SELECT (VENDOR-SPECIFIC), LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+        else:
+            cmd_label = [ f"[15]: MODE SELECT (SCSI-2 COMPLIANT), LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x1A):            # MODE SENSE
+        pc = (ctype[2] & 0xC0) >> 6
+        page_code = (ctype[2] & 0xBF)
+        if ((ctype[1] == 0x00) and (ctype[2] == 0x00)):
+            cmd_label = [ f"[1A]: MODE SENSE (VENDOR-SPECIFIC), LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+        else:
+            cmd_label = [ f"[1A]: MODE SENSE PC={pc}, PAGE CODE=0x{page_code:02X}, LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x1E):            # PREVENT/ALLOW MEDIUM REMOVAL
+        if ctype[4] == 0x00:
+            cmd_label = [ f"[1E]: ALLOW MEDIUM REMOVAL    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+        else:
+            cmd_label = [ f"[1E]: PREVENT MEDIUM REMOVAL    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x28):            # READ EXTENDED (10)
+        lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
+        blks = (ctype[7] << 8) + ctype[8]
+        if ctype[9] == 0x00:
+            cmd_label = [ f"[28]: READ LBA 0x{lba:08X}, 0x{blks:04X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x40:
+            cmd_label = [ f"[28]: READ MSF {ctype[2]:02X}:{ctype[3]:02X}:{ctype[4]:02X}, 0x{blks:04X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x80:
+            cmd_label = [ f"[28]: READ TRACK {ctype[2]:02X}, 0x{blks:04X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        else:
+            cmd_label = [ f"[28]: UNKNOWN READ, 0x{blks:04X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0x43):            # READ TOC FORMAT
+        numbytes = (ctype[7] << 8) + ctype[8]
+        numtracks = (numbytes - 4) >> 3
+        if ctype[1] == 0x00:
+            cmd_label = [ f"[43]: READ TOC, LBA FORMAT, TRACK {ctype[6]}, {numtracks} TRACK(S)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        else:
+            cmd_label = [ f"[43]: READ TOC, MSF FORMAT, TRACK {ctype[6]}, {numtracks} TRACK(S)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0x44):            # READ HEADER
+        lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
+        numbytes = (ctype[7] << 8) + ctype[8]
+        if ctype[1] == 0x00:
+            cmd_label = [ f"[44]: READ HEADER, LBA {lba:08X}, {numbytes:04X} BYTES (RETURN IN LBA FORMAT)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        else:
+            cmd_label = [ f"[44]: READ HEADER, LBA {lba:08X}, {numbytes:04X} BYTES (RETURN IN MSF FORMAT)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0x4B):            # PAUSE/RESUME
+        if ctype[8] == 0x00:
+            cmd_label = [ f"[4B]: PAUSE AUDIO PLAYBACK/SCANNING    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        else:
+            cmd_label = [ f"[4B]: RESUME AUDIO PLAYBACK/SCANNING    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0xD8):            # AUDIO TRACK SEARCH
+        lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
+        blks = (ctype[7] << 8) + ctype[8]
+        if ctype[1] == 0x00:
+            oper = "PAUSE"
+        else:
+            oper = "PLAY"
+
+        if ctype[9] == 0x00:
+            cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - LBA 0x{lba:08X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x40:
+            cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - MSF {ctype[2]:02X}:{ctype[3]:02X}:{ctype[4]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x80:
+            cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - TRACK {ctype[2]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    else:                               # ALL OTHERS
+        cmd_label = [ f"[{ctype[0]:02X}]: Unknown command  [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    return cmd_label
+
+
 class Decoder(srd.Decoder):
     api_version = 3
     id = 'pcfx_scsi'
@@ -143,23 +228,26 @@ class Decoder(srd.Decoder):
         ('13', 'data_in',     'Data In'),            # 18 = (row 2)
         ('1',  'data_out',    'Data Out'),           # 19 = (row 2)
 
-        ('6',  'datatotgt',   'Data to Target'),     # 20 = (row 3)
-        ('12', 'cmd0',        'Command Type 0'),     # 21 = (row 3) (status-type commands)
-        ('2',  'cmd1',        'Command Type 1'),     # 22 = (row 3) (directory-type commands)
-        ('8',  'cmd2',        'Command Type 2'),     # 23 = (row 3) (data-type commands)
-        ('4',  'cmd3',        'Command Type 3'),     # 24 = (row 3) (audio-type commands)
-        ('13', 'cmd4',        'Command Type 4'),     # 25 = (row 3) (subcode-type commands)
-        ('6',  'cmd5',        'Command Type 5'),     # 26 = (row 3)
-        ('6',  'cmd6',        'Command Type 6'),     # 27 = (row 3)
-        ('0',  'cmd7',        'Command Type 7'),     # 28 = (row 3) (unkown commands)
+        ('6',  'datatotgt',   'Data to Target'),     # 20 = (row 4)
+        ('12', 'cmd0',        'Command Type 0'),     # 21 = (row 4) (status-type commands)
+        ('2',  'cmd1',        'Command Type 1'),     # 22 = (row 4) (directory-type commands)
+        ('8',  'cmd2',        'Command Type 2'),     # 23 = (row 4) (data-type commands)
+        ('4',  'cmd3',        'Command Type 3'),     # 24 = (row 4) (audio-type commands)
+        ('13', 'cmd4',        'Command Type 4'),     # 25 = (row 4) (subcode-type commands)
+        ('6',  'cmd5',        'Command Type 5'),     # 26 = (row 4)
+        ('6',  'cmd6',        'Command Type 6'),     # 27 = (row 4)
+        ('0',  'cmd7',        'Command Type 7'),     # 28 = (row 4) (unkown commands)
 
-        ('6',  'datafromtgt', 'Data from Target'),   # 29 = (row 4)
+        ('6',  'datafromtgt', 'Data from Target'),   # 29 = (row 5)
 
-        ('10', 'bytenum',     'Byte in Sequence'),   # 30 = (row 5)
+        ('10', 'bytenum',     'Byte in Sequence'),   # 30 = (row 6)
+
+        ('6',  'cmd_type',    'Cmd Type'),           # 31 = (row 3)
     )
     annotation_rows = (
         ('phase',        'Phase',       (0,1,2,3,4,5,6,7,8,9,10,)),
         ('type',         'Type',        (11,12,13,14,15,16,17,18,19,)),
+        ('cmd_type',     'Cmd Type',    (31,)),
         ('to_target',    'To Target',   (20,21,22,23,24,25,26,27,28,)),
         ('from_target',  'From Target', (29,)),
         ('byte_num',     'Byte Num',    (30,)),
@@ -190,6 +278,7 @@ class Decoder(srd.Decoder):
         self.datastartsample = 0     # detect start sample of data 
         self.datafound = 0           # Do not display subphases unless data was actually transferred within them
                                      # (could just be CD/IO/MSG toggling)
+        self.cmd_type = [ 100, 101 ]
 
 
     def metadata(self, key, value):
@@ -320,6 +409,8 @@ class Decoder(srd.Decoder):
                             if (self.subphase == 5):        # COMMAND
                                 if (self.datafound == 0):   # first byte of command
                                     command_annote = command_annotation(self.dataval)
+                                    self.cmd_type.clear()                    # clear cmd_type list
+                                self.cmd_type.append(self.dataval)           # add bytes to cmd_type list
                             else:
                                 command_annote = 20                     # DATA (if data is being xferred to target)
 
@@ -348,6 +439,12 @@ class Decoder(srd.Decoder):
                             subph_label = subphase_label(self.subphase)
                             self.put(self.phasestartsample, self.samplenum, self.out_ann,
                                          [(12+self.subphase), subph_label])
+
+                            if (self.subphase == 5):                                    # If the command has ended, make extended annotation
+                                cmd_type_label = command_label(self.cmd_type)
+                                self.put(self.phasestartsample, self.samplenum, self.out_ann,
+                                         [31, cmd_type_label])
+
                         self.phasestartsample = self.samplenum
                         self.subphase = temp_subphase
                         self.datafound = 0
