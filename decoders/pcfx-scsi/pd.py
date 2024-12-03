@@ -89,22 +89,22 @@ def command_annotation(byte0):
 
 
 def command_label(ctype):
-    if (ctype[0] == 0x00):              # TEST UNIT READY
+    if (ctype[0] == 0x00):              # 00 = TEST UNIT READY
         cmd_label = [ f"[00]: TEST UNIT READY   [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
-    elif (ctype[0] == 0x03):            # REQUEST SENSE
+    elif (ctype[0] == 0x03):            # 03 = REQUEST SENSE
         if ctype[4] == 0x12:
             cmd_label = [ f"[03]: REQUEST SENSE (18 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
         else:
             cmd_label = [ f"[03]: REQUEST SENSE (4 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
-    elif (ctype[0] == 0x15):            # MODE SELECT
+    elif (ctype[0] == 0x15):            # 15 = MODE SELECT
         if ctype[1] == 0x00:
             cmd_label = [ f"[15]: MODE SELECT (VENDOR-SPECIFIC), LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
         else:
             cmd_label = [ f"[15]: MODE SELECT (SCSI-2 COMPLIANT), LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
-    elif (ctype[0] == 0x1A):            # MODE SENSE
+    elif (ctype[0] == 0x1A):            # 1A = MODE SENSE
         pc = (ctype[2] & 0xC0) >> 6
         page_code = (ctype[2] & 0xBF)
         if ((ctype[1] == 0x00) and (ctype[2] == 0x00)):
@@ -112,13 +112,13 @@ def command_label(ctype):
         else:
             cmd_label = [ f"[1A]: MODE SENSE PC={pc}, PAGE CODE=0x{page_code:02X}, LIST LENGTH=0x{ctype[4]:02X}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
-    elif (ctype[0] == 0x1E):            # PREVENT/ALLOW MEDIUM REMOVAL
+    elif (ctype[0] == 0x1E):            # 1E = PREVENT/ALLOW MEDIUM REMOVAL
         if ctype[4] == 0x00:
             cmd_label = [ f"[1E]: ALLOW MEDIUM REMOVAL    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
         else:
             cmd_label = [ f"[1E]: PREVENT MEDIUM REMOVAL    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
-    elif (ctype[0] == 0x28):            # READ EXTENDED (10)
+    elif (ctype[0] == 0x28):            # 28 = READ EXTENDED (10)
         lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
         blks = (ctype[7] << 8) + ctype[8]
         if ctype[9] == 0x00:
@@ -130,7 +130,7 @@ def command_label(ctype):
         else:
             cmd_label = [ f"[28]: UNKNOWN READ, 0x{blks:04X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
-    elif (ctype[0] == 0x43):            # READ TOC FORMAT
+    elif (ctype[0] == 0x43):            # 43 = READ TOC FORMAT
         numbytes = (ctype[7] << 8) + ctype[8]
         numtracks = (numbytes - 4) >> 3
         if ctype[1] == 0x00:
@@ -138,7 +138,7 @@ def command_label(ctype):
         else:
             cmd_label = [ f"[43]: READ TOC, MSF FORMAT, TRACK {ctype[6]}, {numtracks} TRACK(S)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
-    elif (ctype[0] == 0x44):            # READ HEADER
+    elif (ctype[0] == 0x44):            # 44 = READ HEADER
         lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
         numbytes = (ctype[7] << 8) + ctype[8]
         if ctype[1] == 0x00:
@@ -146,13 +146,13 @@ def command_label(ctype):
         else:
             cmd_label = [ f"[44]: READ HEADER, LBA {lba:08X}, {numbytes:04X} BYTES (RETURN IN MSF FORMAT)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
-    elif (ctype[0] == 0x4B):            # PAUSE/RESUME
+    elif (ctype[0] == 0x4B):            # 4B = PAUSE/RESUME
         if ctype[8] == 0x00:
             cmd_label = [ f"[4B]: PAUSE AUDIO PLAYBACK/SCANNING    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
         else:
             cmd_label = [ f"[4B]: RESUME AUDIO PLAYBACK/SCANNING    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
-    elif (ctype[0] == 0xD8):            # AUDIO TRACK SEARCH
+    elif (ctype[0] == 0xD8):            # D8 = AUDIO TRACK SEARCH
         lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
         blks = (ctype[7] << 8) + ctype[8]
         if ctype[1] == 0x00:
@@ -166,6 +166,17 @@ def command_label(ctype):
             cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - MSF {ctype[2]:02X}:{ctype[3]:02X}:{ctype[4]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
         elif ctype[9] == 0x80:
             cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - TRACK {ctype[2]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0xDE):            # DE = READ TOC
+        rdtype = (ctype[1] & 3)
+        if rdtype == 0:
+            cmd_label = [ f"[DE]: READ TOC (NUM TRACKS)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif rdtype == 1:
+            cmd_label = [ f"[DE]: READ TOC (LEADOUT)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif rdtype == 2:
+            cmd_label = [ f"[DE]: READ TOC INFO (TRACK {ctype[2]:02X})    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif rdtype == 3:
+            cmd_label = [ f"[DE]: READ TOC PARAMETER ({ctype[2]:02X})    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
     else:                               # ALL OTHERS
         cmd_label = [ f"[{ctype[0]:02X}]: Unknown command  [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
