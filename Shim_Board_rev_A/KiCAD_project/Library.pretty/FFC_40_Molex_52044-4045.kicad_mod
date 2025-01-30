@@ -421,4 +421,15 @@
 		(remove_unused_layers no)
 		(uuid "de5e139b-2944-4751-b2aa-961ca4003fef")
 	)
+	(model "${KIPRJMOD}/Library.pretty/52044-4045.stp"
+		(offset
+			(xyz 0.62 -3.62 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz -90 0 0)
+		)
+	)
 )
