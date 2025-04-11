@@ -23,19 +23,19 @@ Once you have installed the protocol decoder, it should be selectable in the lis
 The protocol decoder adds several annotation rows, to be able to interpret the bitstream in several
 different ways; each of them can be displayed or suppressed.  These rows include:
  - SCSI phase (which defines which unit(s) are communicating what type of data to each other)
- - Type (eitehr LUN pairs for communication, or a communication type within "Information Transfer" bus phase)
+ - Type (either LUN pairs for communication, or a communication type within "Information Transfer" bus phase)
  - Data To Target (data bytes being sent from the Master to the Target)
  - Data From Target (data bytes being sent from the Target to the Master)
  - Byte Number (Counter for bytes within a transfer sequence)
 
 An example is shown below (from an actual data capture):
 
-![Multitap](img/PCFX_SCSI.JPG)
+![Logic Analyzer Capture](img/PCFX_SCSI.JPG)
 
 ### Not Implemented
 
 - SCSI Abort
-- Not paying attention to the SCSI "ATN" signal
+- It is currently not paying attention to the SCSI "ATN" signal
 - Any Timing/timeout conditions (bus settling, timeouts, etc.)
 - Any other Protocol Errors
 
@@ -57,7 +57,6 @@ but I needed to understand more about the SCSI standard, and how it was implemen
 
 However, it was quite tedious trying to interpret the bit values and see "the bigger picture", and I wished I had a
 protocol decoder like this one to help interpret.
-
 
 
 ## NOTES:
