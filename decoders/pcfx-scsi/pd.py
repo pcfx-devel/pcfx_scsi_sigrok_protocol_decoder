@@ -27,7 +27,7 @@ class SamplerateError(Exception):
 def getluns(datapins):
     value = "LUN "
     first = 0
-    for iter in range (7, 0, -1):
+    for iter in range (7, -1, -1):
         if datapins[iter] == 0:
             if first == 0:
                 value = value + str(iter)
@@ -96,7 +96,15 @@ def command_label(ctype):
         if ctype[4] == 0x12:
             cmd_label = [ f"[03]: REQUEST SENSE (18 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
         else:
-            cmd_label = [ f"[03]: REQUEST SENSE (4 bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+            cmd_label = [ f"[03]: REQUEST SENSE ({ctype[4]} bytes)    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
+
+    elif (ctype[0] == 0x08):            # 08 = READ (6)
+        lba = ((ctype[1] & 0x1F ) << 16) + (ctype[2] << 8) + ctype[3]
+        if (ctype[4] == 0x00):
+            blks = 256
+        else:
+            blks = ctype[4]
+        cmd_label = [ f"[08]: READ LBA 0x{lba:06X}, 0x{blks:02X} BLOCKS    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} ]" ]
 
     elif (ctype[0] == 0x15):            # 15 = MODE SELECT
         if ctype[1] == 0x00:
@@ -154,7 +162,6 @@ def command_label(ctype):
 
     elif (ctype[0] == 0xD8):            # D8 = AUDIO TRACK SEARCH
         lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
-        blks = (ctype[7] << 8) + ctype[8]
         if ctype[1] == 0x00:
             oper = "PAUSE"
         else:
@@ -166,6 +173,40 @@ def command_label(ctype):
             cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - MSF {ctype[2]:02X}:{ctype[3]:02X}:{ctype[4]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
         elif ctype[9] == 0x80:
             cmd_label = [ f"[D8]: AUDIO TRACK SEARCH - TRACK {ctype[2]:02X}, {oper}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0xD9):            # D9 = PLAY
+        lba = (ctype[2] << 24) + (ctype[3] << 16) + (ctype[4] << 8) + ctype[5]
+        playmode = ctype[1] & 0x03
+        if (playmode == 0):
+            mode = "(MUTE)"
+        elif (playmode == 1):
+            mode = "(L-CH)"
+        elif (playmode == 2):
+            mode = "(R-CH)"
+        elif (playmode == 3):
+            mode = "(STEREO)"
+        elif (playmode == 4):
+            mode = "(REPEAT)"
+        elif (playmode == 5):
+            mode = "(BUSY)"
+        elif (playmode == 6):
+            mode = "(UNKNOWN)"
+        else:
+            mode = "(UNKNOWN)"
+
+        if ctype[9] == 0x00:
+            cmd_label = [ f"[D9]: PLAY UNTIL - LBA 0x{lba:08X}, {mode}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x40:
+            cmd_label = [ f"[D9]: PLAY UNTIL - MSF {ctype[2]:02X}:{ctype[3]:02X}:{ctype[4]:02X}, {mode}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+        elif ctype[9] == 0x80:
+            cmd_label = [ f"[D9]: PLAY UNTIL - TRACK {ctype[2]:02X}, {mode}    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0xDA):            # DA = STILL
+        cmd_label = [ f"[DA]: STILL    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
+
+    elif (ctype[0] == 0xDD):            # DD = READ SUBCODE-Q
+        numbytes = (ctype[1] & 0x1F)
+        cmd_label = [ f"[DD]: READ SUBCODEQ {numbytes} BYTES    [ 0x{ctype[0]:02X} 0x{ctype[1]:02X} 0x{ctype[2]:02X} 0x{ctype[3]:02X} 0x{ctype[4]:02X} 0x{ctype[5]:02X} 0x{ctype[6]:02X} 0x{ctype[7]:02X} 0x{ctype[8]:02X} 0x{ctype[9]:02X} ]" ]
 
     elif (ctype[0] == 0xDE):            # DE = READ TOC
         rdtype = (ctype[1] & 3)
